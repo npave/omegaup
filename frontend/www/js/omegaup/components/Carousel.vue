@@ -39,10 +39,11 @@ import {T} from '../omegaup.js';
 
 export default {
   props: {
-    json: Object,
+    json: Array,
   },
   computed: {
     slides: function() {
+      console.log('filtering slides');
       let filteredSlides = [];
       this.json.forEach(slide => {
         if (slide._meta != 'comments') {
