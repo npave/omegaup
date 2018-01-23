@@ -165,7 +165,8 @@ class ProblemController extends Controller {
         $problem->stack_limit = $r['stack_limit'];
         $problem->email_clarifications = $r['email_clarifications'];
 
-        $problemDeployer = new ProblemDeployer($r['alias'], ProblemDeployer::CREATE);
+        $acceptsSubmissions = $r['languages'] !== '';
+        $problemDeployer = new ProblemDeployer($r['alias'], ProblemDeployer::CREATE, $acceptsSubmissions);
 
         $acl = new ACLs();
         $acl->owner_id = $r['current_user_id'];
@@ -687,7 +688,9 @@ class ProblemController extends Controller {
         $response = [
             'rejudged' => false
         ];
-        $problemDeployer = new ProblemDeployer($problem->alias, ProblemDeployer::UPDATE_CASES);
+
+        $acceptsSubmissions = $problem->languages !== '';
+        $problemDeployer = new ProblemDeployer($problem->alias, ProblemDeployer::UPDATE_CASES, $acceptsSubmissions);
 
         // Insert new problem
         try {
@@ -969,7 +972,7 @@ class ProblemController extends Controller {
         $problemArtifacts = new ProblemArtifacts($r['problem']->alias);
 
         try {
-            $file_content = $problemArtifacts->get('examples/sample.in');
+            $file_content = $problemArtifacts->get('examples/sample.in', true /* quiet */);
         } catch (Exception $e) {
             // Most problems won't have a sample input.
             $file_content = '';
@@ -1155,15 +1158,17 @@ class ProblemController extends Controller {
         // Add preferred language of the user.
         $user_data = [];
         $request = new Request(['omit_rank' => true, 'auth_token' => $r['auth_token']]);
-        Cache::getFromCacheOrSet(
-            Cache::USER_PROFILE,
-            $r['current_user']->username,
-            $request,
-            function (Request $request) {
-                    return UserController::apiProfile($request);
-            },
-            $user_data
-        );
+        if (!is_null($r['current_user'])) {
+            Cache::getFromCacheOrSet(
+                Cache::USER_PROFILE,
+                $r['current_user']->username,
+                $request,
+                function (Request $request) {
+                        return UserController::apiProfile($request);
+                },
+                $user_data
+            );
+        }
         if (!empty($user_data)) {
             $response['preferred_language'] = $user_data['userinfo']['preferred_language'];
         }
@@ -1218,6 +1223,7 @@ class ProblemController extends Controller {
                     $filtered['alias'] = $r['problem']->alias;
                     $filtered['username'] = $r['current_user']->username;
                     $filtered['time'] = strtotime($filtered['time']);
+                    $filtered['contest_score'] = (float)$filtered['contest_score'];
                     array_push($runs_filtered_array, $filtered);
                 }
             }
@@ -1269,6 +1275,10 @@ class ProblemController extends Controller {
                 $r['problem']->problem_id
             );
         }
+
+        // send the supported languages as a JSON array instead of csv
+        // array_filter is needed to handle when $response['languages'] is empty
+        $response['languages'] = array_filter(explode(',', $response['languages']));
 
         $response['points'] = round(100.0 / (log(max($response['accepted'], 1.0) + 1, 2)), 2);
         $response['score'] = self::bestScore($r);

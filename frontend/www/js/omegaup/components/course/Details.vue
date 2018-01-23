@@ -9,7 +9,7 @@
             v-on:submit.prevent="onSubmit">
         <div class="row">
           <div class="form-group col-md-8">
-            <label>{{ T.wordsName }} <input class="form-control"
+            <label>{{ T.wordsName }} <input class="form-control name"
                    type="text"
                    v-model="name"></label>
           </div>
@@ -19,7 +19,7 @@
                   data-placement="top"
                   data-toggle="tooltip"
                   v-bind:title="T.courseNewFormShortTitle_alias_Desc"></span> <input class=
-                  "form-control"
+                  "form-control alias"
                    type="text"
                    v-bind:disabled="update"
                    v-model="alias"></label>
@@ -59,6 +59,33 @@
           </div>
         </div>
         <div class="row">
+          <div class="form-group col-md-8">
+            <label>{{ T.profileSchool }} <input autocomplete="off"
+                   class="form-control typeahead school"
+                   type="text"
+                   v-model="school_name"
+                   v-on:change="onChange"><input class="school_id"
+                   type="hidden"
+                   v-model="school_id"></label>
+          </div>
+          <div class="form-group col-md-4">
+            <span class="faux-label">{{ T.courseNewFormBasicInformationRequired }}
+            <span aria-hidden="true"
+                  class="glyphicon glyphicon-info-sign"
+                  data-placement="top"
+                  data-toggle="tooltip"
+                  v-bind:title="T.courseNewFormBasicInformationRequiredDesc"></span></span>
+            <div class="form-control container-fluid">
+              <label class="radio-inline"><input type="radio"
+                     v-bind:value="true"
+                     v-model="basic_information_required">{{ T.wordsYes }}</label> <label class=
+                     "radio-inline"><input type="radio"
+                     v-bind:value="false"
+                     v-model="basic_information_required">{{ T.wordsNo }}</label>
+            </div>
+          </div>
+        </div>
+        <div class="row">
           <div class="form-group container-fluid">
             <label>{{ T.courseNewFormDescription }}
             <textarea class="form-control"
@@ -68,7 +95,7 @@
           </div>
         </div>
         <div class="form-group pull-right">
-          <button class="btn btn-primary"
+          <button class="btn btn-primary submit"
                type="submit">
           <template v-if="update">
             {{ T.courseNewFormUpdateCourse }}
@@ -85,6 +112,7 @@
 </template>
 
 <script>
+import UI from '../../ui.js';
 import DatePicker from '../DatePicker.vue';
 
 export default {
@@ -101,7 +129,17 @@ export default {
       showScoreboard: this.course.show_scoreboard || 0,
       startTime: this.course.start_time || new Date(),
       name: this.course.name,
+      school_id: this.course.school_id,
+      school_name: this.course.school_name,
+      basic_information_required: !!this.course.basic_information_required
     };
+  },
+  mounted: function() {
+    let self = this;
+    UI.schoolTypeahead($('input.typeahead', self.$el), function(event, item) {
+      self.school_name = item.value;
+      self.school_id = item.id;
+    });
   },
   watch: {
     course: function(val) { this.reset();},
@@ -114,12 +152,23 @@ export default {
       this.showScoreboard = this.course.show_scoreboard || 0;
       this.startTime = this.course.start_time || new Date();
       this.name = this.course.name;
+      this.school_id = this.course.school_id;
+      this.school_name = this.course.school_name,
+      this.basic_information_required =
+          !!this.course.basic_information_required;
     },
     onSubmit: function() { this.$emit('submit', this);},
     onCancel: function() {
       this.reset();
       this.$emit('cancel');
     },
+    onChange: function() {
+      if (this.course.school_id == this.school_id) {
+        this.school_id = null;
+      } else {
+        this.course.school_id = this.school_id;
+      }
+    }
   },
   components: {
     'omegaup-datepicker': DatePicker,

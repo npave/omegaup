@@ -28,7 +28,7 @@ class Validators {
     /**
      * Check if string is string and not empty
      *
-     * @param string $email
+     * @param string $parameter
      * @param string $parameterName Name of parameter that will appear en error message
      * @param boolean $required If $required is TRUE and the parameter is not present, check fails.
      * @return boolean
@@ -237,7 +237,7 @@ class Validators {
 
         if ($isPresent) {
             $bad_elements = [];
-            $elements = explode(',', $parameter);
+            $elements = array_filter(explode(',', $parameter));
             foreach ($elements as $element) {
                 if (!in_array($element, $enum)) {
                     $bad_elements[] = $element;

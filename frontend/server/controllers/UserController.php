@@ -43,7 +43,21 @@ class UserController extends Controller {
         }
 
         if (!is_null($userByEmail)) {
-            throw new DuplicatedEntryInDatabaseException('mailInUse');
+            if (!is_null($userByEmail->password)) {
+                throw new DuplicatedEntryInDatabaseException('mailInUse');
+            }
+
+            $user = new Users([
+                'user_id' => $userByEmail->user_id,
+                'username' => $r['username'],
+                'password' => $hashedPassword
+            ]);
+            UsersDAO::savePassword($user);
+
+            return [
+                'status' => 'ok',
+                'user_id' => $user->user_id
+            ];
         }
 
         if (!is_null($user)) {
@@ -277,60 +291,23 @@ class UserController extends Controller {
      */
     private static function sendVerificationEmail(Request $r) {
         try {
-            $r['email'] = EmailsDAO::getByPK($r['user']->main_email_id);
+            $email = EmailsDAO::getByPK($r['user']->main_email_id);
         } catch (Exception $e) {
             throw new InvalidDatabaseOperationException($e);
         }
 
         global $smarty;
-        $r['mail_subject'] = $smarty->getConfigVars('verificationEmailSubject');
-        $r['mail_body'] = sprintf(
+        $subject = $smarty->getConfigVars('verificationEmailSubject');
+        $body = sprintf(
             $smarty->getConfigVars('verificationEmailBody'),
             OMEGAUP_URL,
             $r['user']->verification_id
         );
 
         if (self::$sendEmailOnVerify) {
-            self::sendEmail($r);
+            Email::sendEmail($email->email, $subject, $body);
         } else {
             self::$log->info('Not sending email beacause sendEmailOnVerify = FALSE');
-        }
-    }
-
-    public static function sendEmail($r) {
-        Validators::isStringNonEmpty($r['mail_subject'], 'mail_subject');
-        Validators::isStringNonEmpty($r['mail_body'], 'mail_body');
-
-        if (!OMEGAUP_EMAIL_SEND_EMAILS) {
-            self::$log->info('Not sending email beacause OMEGAUP_EMAIL_SEND_EMAILS = FALSE, this is what I would have sent:');
-            self::$log->info('     to = ' . $r['email']->email);
-            self::$log->info('subject = ' . $r['mail_subject']);
-            self::$log->info('   body = ' . $r['mail_body']);
-            return;
-        }
-
-        self::$log->info('Really sending email to user.');
-
-        $mail = new PHPMailer();
-        $mail->IsSMTP();
-        $mail->Host = OMEGAUP_EMAIL_SMTP_HOST;
-        $mail->CharSet = 'utf-8';
-        $mail->SMTPAuth = true;
-        $mail->Password = OMEGAUP_EMAIL_SMTP_PASSWORD;
-        $mail->From = OMEGAUP_EMAIL_SMTP_FROM;
-        $mail->Port = 465;
-        $mail->SMTPSecure = 'ssl';
-        $mail->Username = OMEGAUP_EMAIL_SMTP_FROM;
-
-        $mail->FromName = OMEGAUP_EMAIL_SMTP_FROM;
-        $mail->AddAddress($r['email']->email);
-        $mail->isHTML(true);
-        $mail->Subject = $r['mail_subject'];
-        $mail->Body = $r['mail_body'];
-
-        if (!$mail->Send()) {
-            self::$log->error('Failed to send mail: ' . $mail->ErrorInfo);
-            throw new EmailVerificationSendException();
         }
     }
 
@@ -889,7 +866,7 @@ class UserController extends Controller {
                 throw new ForbiddenAccessException();
             }
             $keys =  [
-                'OVI17' => 100
+                'OVI18' => 155
             ];
         } elseif ($r['contest_type'] == 'UDCCUP') {
             if ($r['current_user']->username != 'Diego_Briaares'
@@ -1449,21 +1426,13 @@ class UserController extends Controller {
         $user = self::resolveTargetUser($r);
 
         try {
-            $totalRunsCount = RunsDAO::CountTotalRunsOfUser($user->user_id);
-
-            // List of verdicts
-            $verdict_counts = [];
-
-            foreach (self::$verdicts as $verdict) {
-                $verdict_counts[$verdict] = RunsDAO::CountTotalRunsOfUserByVerdict($user->user_id, $verdict);
-            }
+            $runsPerDatePerVerdict = RunsDAO::CountRunsOfUserPerDatePerVerdict($user->user_id);
         } catch (Exception $e) {
             throw new InvalidDatabaseOperationException($e);
         }
 
         return [
-            'verdict_counts' => $verdict_counts,
-            'total_runs' => $totalRunsCount,
+            'runs' => $runsPerDatePerVerdict,
             'status' => 'ok'
         ];
     }
@@ -1496,6 +1465,11 @@ class UserController extends Controller {
         $r['current_user']->password = $hashedPassword;
 
         UsersDAO::save($r['current_user']);
+
+        // Expire profile cache
+        Cache::deleteFromCache(Cache::USER_PROFILE, $r['current_user']->username);
+        $sessionController = new SessionController();
+        $sessionController->InvalidateCache();
 
         return ['status' => 'ok'];
     }
@@ -1658,6 +1632,7 @@ class UserController extends Controller {
                 throw new InvalidDatabaseOperationException($e);
             }
         }
+        Validators::isInEnum($r['filter'], 'filter', ['', 'country', 'state', 'school'], false);
 
         // Defaults for offset and rowcount
         if (null == $r['offset']) {
@@ -1679,13 +1654,14 @@ class UserController extends Controller {
      */
     private static function getRankByProblemsSolved(Request $r) {
         if (is_null($r['user'])) {
-            $rankCacheName =  $r['offset'] . '-' . $r['rowcount'];
-
+            $selectedFilter = self::getSelectedFilter($r);
+            $rankCacheName =  $r['offset'] . '-' . $r['rowcount'] . '-' . $r['filter'] . '-' . $selectedFilter['value'];
             $cacheUsed = Cache::getFromCacheOrSet(Cache::PROBLEMS_SOLVED_RANK, $rankCacheName, $r, function (Request $r) {
                 $response = [];
                 $response['rank'] = [];
+                $selectedFilter = self::getSelectedFilter($r);
                 try {
-                    $userRankEntries = UserRankDAO::getAll($r['offset'], $r['rowcount'], 'Rank', 'ASC');
+                    $userRankEntries = UserRankDAO::getFilteredRank($r['offset'], $r['rowcount'], 'Rank', 'ASC', $selectedFilter['filteredBy'], $selectedFilter['value']);
                 } catch (Exception $e) {
                     throw new InvalidDatabaseOperationException($e);
                 }
@@ -1734,33 +1710,6 @@ class UserController extends Controller {
      */
     public static function deleteProblemsSolvedRankCacheList() {
         Cache::invalidateAllKeys(Cache::PROBLEMS_SOLVED_RANK);
-    }
-
-    /**
-     * Forza un refresh de la tabla User_Rank. SysAdmin only.
-     *
-     * @param Request $r
-     * @return array
-     * @throws UnauthorizedException
-     */
-    public static function apiRefreshUserRank(Request $r) {
-        self::authenticateRequest($r);
-
-        if (!Authorization::isSystemAdmin($r['current_user_id'])) {
-            throw new UnauthorizedException();
-        }
-
-        // Actualizar tabla User_Rank
-        try {
-            UserRankDAO::refreshUserRank();
-        } catch (Exception $ex) {
-            throw new InvalidDatabaseOperationException($ex);
-        }
-
-        // Borrar todos los ranks cacheados
-        self::deleteProblemsSolvedRankCacheList();
-
-        return ['status' => 'ok'];
     }
 
     /**
@@ -2075,6 +2024,25 @@ class UserController extends Controller {
         return [
             'status' => 'ok',
         ];
+    }
+
+    private static function getSelectedFilter($r) {
+        $session = SessionController::apiCurrentSession($r)['session'];
+        if (!$session['valid']) {
+            return ['filteredBy' => null, 'value' => null];
+        }
+        $user = $session['user'];
+        $filteredBy = $r['filter'];
+        if ($filteredBy == 'country') {
+            return ['filteredBy' => $filteredBy, 'value' => $user->country_id];
+        }
+        if ($filteredBy == 'state') {
+            return ['filteredBy' => $filteredBy, 'value' => $user->country_id . '-' . $user->state_id];
+        }
+        if ($filteredBy == 'school') {
+            return ['filteredBy' => $filteredBy, 'value' => $user->school_id];
+        }
+        return ['filteredBy' => null, 'value' => null];
     }
 }
 

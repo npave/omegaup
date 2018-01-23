@@ -16,7 +16,7 @@
 					</div>
 					<div class="navbar-collapse collapse" id="navbar-collapse-8" aria-expanded="false" >
 						<ul class="nav navbar-nav">
-							{if !$smarty.const.OMEGAUP_LOCKDOWN && !(isset($inContest) && $inContest)}
+						{if !$smarty.const.OMEGAUP_LOCKDOWN && !(isset($inContest) && $inContest)}
 							<li id="nav-arena"{if isset($navbarSection) && $navbarSection == "arena"} class="active"{/if}><a href='/arena/'>{#navArena#}</a></li>
 							{if $LOGGED_IN eq '1'}
 								<li id="nav-contests"{if isset($navbarSection) && $navbarSection == 'contests'} class="active"{/if}>
@@ -34,20 +34,22 @@
 										<li><a href="/problem/new/">{#myproblemsListCreateProblem#}</a></li>
 										<li><a href="/problem/mine/">{#navMyProblems#}</a></li>
 										<li><a href="/problem/">{#wordsProblems#}</a></li>
+										<li><a href="/nomination/mine/">{#navMyQualityNomination#}</a></li>
+										{if $CURRENT_USER_IS_REVIEWER eq '1'}
+										<li><a href="/nomination/">{#navQualityNominationQueue#}</a></li>
+										{/if}
 									</ul>
 								</li>
 							{else}
 								<li id="nav-problems"{if isset($navbarSection) && $navbarSection == "problems"} class="active"{/if}><a href='/problem/'>{#wordsProblems#}</a></li>
-							{/if}<!-- LOGGED_IN -->
+							{/if} <!-- LOGGED_IN -->
 							<li class="{if isset($navbarSection) && $navbarSection == "rank"} active{/if}" id="nav-rank"><a href='/rank/'>{#navRanking#}</a></li>
-							{if !empty($ENABLED_EXPERIMENTS) && in_array('schools', $ENABLED_EXPERIMENTS)}
 							<li class="{if isset($navbarSection) && $navbarSection == "schools"} active{/if}" id="nav-schools"><a href='/schools/'>{#navSchools#}</a></li>
-							{/if}
 							<li><a href='http://blog.omegaup.com/'>{#navBlog#}</a></li>
 							<li><a href='https://omegaup.com/preguntas/'>{#navQuestions#}</a></li>
-							</ul>
-							<ul class="nav navbar-nav navbar-right">
-							{if $LOGGED_IN eq '1'}
+						</ul>
+						<ul class="nav navbar-nav navbar-right">
+						{if $LOGGED_IN eq '1'}
 {if isset($inContest) && $inContest}
 {include file='common.navbar.notifications.tpl'}
 {/if}
@@ -58,8 +60,8 @@
 								 <li><a href='/logout/'><span class="glyphicon glyphicon-log-out"></span> {#navLogOut#}</a></li>
 								</ul>
 							</li>
-						{else}<!-- LOGGED_IN -->
-							<li><a href='/login/?redirect={$smarty.server.REQUEST_URI|escape:'url'}'>{#navLogIn#}</a></li>
+						{else} <!-- LOGGED_IN -->
+							<li><a href="/login/?redirect={$smarty.server.REQUEST_URI|escape:'url'}">{#navLogIn#}</a></li>
 						{/if}
 
 						{if $CURRENT_USER_IS_ADMIN eq '1'}
@@ -68,9 +70,9 @@
 								<ul class="dropdown-menu">
 								</ul>
 							</li>
-						{/if}<!-- CURRENT_USER_IS_ADMIN -->
+						{/if} <!-- CURRENT_USER_IS_ADMIN -->
+						{/if} <!-- OMEGAUP_LOCKDOWN -->
 						</ul>
-						{/if}
 					</div>
 					{if $CURRENT_USER_IS_ADMIN eq '1'}
 					<script type="text/javascript" src="{version_hash src="/js/common.navbar.grader_status.js"}"></script>

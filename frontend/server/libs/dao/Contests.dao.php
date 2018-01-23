@@ -77,8 +77,8 @@ class ActiveStatus extends StatusBase {
 
     public static $SQL_FOR_STATUS = [
         'TRUE',
-        'finish_time > NOW() AND start_time < NOW()',
-        'finish_time <= NOW()',
+        'finish_time >= NOW() AND start_time <= NOW()',
+        'finish_time < NOW()',
         'start_time > NOW()',
     ];
 }
@@ -141,7 +141,7 @@ class ContestsDAO extends ContestsDAOBase {
 
         global $conn;
         $rs = $conn->GetRow($sql, $params);
-        if (count($rs)==0) {
+        if (count($rs) == 0) {
             return null;
         }
 
@@ -652,6 +652,27 @@ class ContestsDAO extends ContestsDAOBase {
         }
 
         return null;
+    }
+
+    public static function getNeedsBasicInformation($problemset_id) {
+        $sql = '
+                SELECT
+                    needs_basic_information
+                FROM
+                    Problemsets
+                WHERE
+                    problemset_id = ?
+                LIMIT 1
+                ';
+
+        global $conn;
+        $params = [$problemset_id];
+
+        $rs = $conn->GetRow($sql, $params);
+        if (count($rs) == 0) {
+            throw new NotFoundException('problemsetNotFound');
+        }
+        return $rs['needs_basic_information'] == '1';
     }
 
     /**

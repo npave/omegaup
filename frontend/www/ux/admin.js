@@ -21,7 +21,6 @@ omegaup.OmegaUp.on('ready', function() {
     $('#loading').fadeOut('slow');
     $('#root').fadeIn('slow');
   } else {
-    arena.connectSocket();
     omegaup.API.Contest.details({contest_alias: arena.options.contestAlias})
         .then(function(contest) {
           if (!contest.admin) {
@@ -95,7 +94,7 @@ omegaup.OmegaUp.on('ready', function() {
   }
 
   $('#submit select[name="language"]')
-      .change(function(e) {
+      .on('change', function(e) {
         var lang = $('#submit select[name="language"]').val();
         if (lang == 'cpp11') {
           $('#submit-filename-extension').text('.cpp');
@@ -107,7 +106,7 @@ omegaup.OmegaUp.on('ready', function() {
       });
 
   $('#submit')
-      .submit(function(e) {
+      .on('submit', function(e) {
         if (!$('#submit textarea[name="code"]').val()) return false;
 
         $('#submit input').attr('disabled', 'disabled');
@@ -141,7 +140,7 @@ omegaup.OmegaUp.on('ready', function() {
       });
 
   $('#rejudge-problem')
-      .click(function() {
+      .on('click', function() {
         if (confirm('Deseas rejuecear el problema ' +
                     arena.currentProblem.alias + '?')) {
           omegaup.API.Problem.rejudge(
@@ -153,7 +152,7 @@ omegaup.OmegaUp.on('ready', function() {
       });
 
   $('#update-problem')
-      .submit(function() {
+      .on('submit', function() {
         $('#update-problem input[name="problem_alias"]')
             .val(arena.currentProblem.alias);
         return confirm('Deseas actualizar el problema ' +

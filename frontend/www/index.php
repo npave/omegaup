@@ -12,8 +12,9 @@ try {
     $coderOfTheMonthResponse = UserController::apiCoderOfTheMonth(new Request());
     $smarty->assign('coderOfTheMonthData', $coderOfTheMonthResponse['userinfo']);
 
-    $schoolRankPayload = SchoolController::apiRank(new Request(['rowcount' => 5]));
-    $smarty->assign('schoolRankPayload', $schoolRankPayload['rank']);
+    $schoolRankPayload = SchoolController::apiRank(new Request(['rowcount' => 100]));
+    // Show top 5 schools rank
+    $smarty->assign('schoolRankPayload', ['rowCount' => 5, 'rank' => $schoolRankPayload['rank']]);
 
     $carouselPayload = json_decode(file_get_contents('carousel.json'));
     $smarty->assign('carouselPayload', $carouselPayload);

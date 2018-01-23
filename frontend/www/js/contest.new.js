@@ -1,6 +1,6 @@
 omegaup.OmegaUp.on('ready', function() {
   $('.new_contest_form')
-      .submit(function(ev) {
+      .on('submit', function(ev) {
         ev.preventDefault();
         var window_length_value = $('#window-length-enabled').is(':checked') ?
                                       $('#window-length').val() :
@@ -29,6 +29,9 @@ omegaup.OmegaUp.on('ready', function() {
               show_scoreboard_after:
                   $('.new_contest_form #show-scoreboard-after').val(),
               languages: $('.new_contest_form #languages').val(),
+              basic_information:
+                  $('.new_contest_form #basic-information-required')
+                      .is(':checked'),
             })
             .then(function(data) {
               window.location.replace('/contest/' +
@@ -41,7 +44,7 @@ omegaup.OmegaUp.on('ready', function() {
 
   // Toggle on/off window length on checkbox change
   $('#window-length-enabled')
-      .change(function() {
+      .on('change', function() {
         if ($(this).is(':checked')) {
           // Enable
           $('#window-length').removeAttr('disabled');
